@@ -11,9 +11,27 @@ int is_zero_block(const unsigned char* buf, int size) {
     return 1;
 }
 
-unsigned char* decode_rs_from_buffer(
-    const unsigned char* encoded_buf, int encoded_size,
-    int* out_file_size)
+// 从 buffer 中搜索 主要参数
+int search_rs_for_parameters(const unsigned char* encoded_buf, int encoded_size, int* data_shards, 
+                             int* parity_shards, int* block_size, int* file_size)
+{
+    int idx;
+    const int *ptr = (int *)encoded_buf;
+    for(idx = 0; idx < encoded_size  * sizeof(unsigned char*) / sizeof(int); idx++)
+    {
+        if(ptr[idx] != 0)
+        {
+            *data_shards   = ptr[idx];
+            *parity_shards = ptr[idx + 1];
+            *block_size    = ptr[idx + 2];
+            *file_size     = ptr[idx + 3];
+            return 1;
+        }
+    }
+    return 0;
+}
+
+unsigned char* decode_rs_from_buffer(reed_solomon_handle* h, const unsigned char* encoded_buf, int encoded_size, int* out_file_size)
 {
     if (!encoded_buf || encoded_size < sizeof(int) * 4) {
         fprintf(stderr, "Invalid buffer.\n");
@@ -21,80 +39,58 @@ unsigned char* decode_rs_from_buffer(
     }
 
     const unsigned char* ptr = encoded_buf;
-    int data_shards = *((int*)ptr); ptr += sizeof(int);
-    int parity_shards = *((int*)ptr); ptr += sizeof(int);
-    int block_size = *((int*)ptr); ptr += sizeof(int);
-    int file_size = *((int*)ptr); ptr += sizeof(int);
-    int total_shards = data_shards + parity_shards;
+    int total_shards = h->data_shards + h->parity_shards;
 
-    if (encoded_size < sizeof(int) * 4 + total_shards * block_size) {
+    if (encoded_size < total_shards * h->block_size) {
         fprintf(stderr, "Encoded buffer too small.\n");
         return NULL;
     }
 
     // 分配 shard 指针和标记
-    unsigned char** shards = malloc(sizeof(unsigned char*) * total_shards);
+    // unsigned char** shards = malloc(sizeof(unsigned char*) * total_shards);
     unsigned char* marks = calloc(total_shards, 1);  // 0=ok, 1=lost
 
     // 读取所有 shard
+    int available_shards = total_shards;
     for (int i = 0; i < total_shards; i++) {
-        shards[i] = malloc(block_size);
-        memcpy(shards[i], ptr, block_size);
-        ptr += block_size;
+        memcpy(h->data[i], ptr, h->block_size);
+        ptr += h->block_size;
 
-        if (is_zero_block(shards[i], block_size)) {
-            free(shards[i]);
-            shards[i] = NULL;
+        if (is_zero_block(h->data[i], h->block_size)) {
+            available_shards--;
             marks[i] = 1;
         }
     }
 
     // 检查是否可恢复
-    int available = 0;
-    for (int i = 0; i < total_shards; i++) {
-        if (shards[i]) available++;
-    }
-    if (available < data_shards) {
-        fprintf(stderr, "ERROR: Not enough shards to recover. Needed %d, got %d\n", data_shards, available);
+    if (available_shards < h->data_shards) {
+        fprintf(stderr, "ERROR: Not enough shards to recover. Needed %d, got %d\n", h->data_shards, available_shards);
         goto fail;
     }
 
-    // 分配用于恢复的 shard
-    for (int i = 0; i < total_shards; i++) {
-        if (shards[i] == NULL) {
-            shards[i] = malloc(block_size);
-        }
-    }
-
     // 解码
-    fec_init();
-    reed_solomon* rs = reed_solomon_new(data_shards, parity_shards);
-    if (!rs || reed_solomon_reconstruct(rs, shards, marks, total_shards, block_size) != 0) {
+    if (!h->rs || reed_solomon_reconstruct(h->rs, h->data, marks, total_shards, h->block_size) != 0) {
         fprintf(stderr, "Reconstruction failed.\n");
         goto fail;
     }
 
     // 提取原始数据
-    unsigned char* out_data = malloc(file_size);
+    unsigned char* out_data = malloc(encoded_size);
     int copied = 0;
-    for (int i = 0; i < data_shards && copied < file_size; i++) {
-        int remain = file_size - copied;
-        int copy_len = (remain < block_size) ? remain : block_size;
-        memcpy(out_data + copied, shards[i], copy_len);
+    for (int i = 0; i < h->data_shards && copied < h->total_size && h->remain_size > 0; i++) {
+        int copy_len = (h->remain_size < h->block_size - h->prefix_size) ? h->remain_size - h->prefix_size : h->block_size - h->prefix_size;
+        memcpy(out_data + copied, h->data[i] + h->prefix_size, copy_len);
         copied += copy_len;
+        h->remain_size = h->remain_size - copy_len;
+        printf("copy_len = %d total_size = %d\n", copy_len, h->total_size);
     }
 
     // 清理
-    for (int i = 0; i < total_shards; i++) free(shards[i]);
-    free(shards);
     free(marks);
-    reed_solomon_release(rs);
-    *out_file_size = file_size;
+    *out_file_size = copied;
     return out_data;
 
 fail:
-    for (int i = 0; i < total_shards; i++) if (shards[i]) free(shards[i]);
-    free(shards);
     free(marks);
     return NULL;
 }
@@ -106,7 +102,7 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-    const char* input_file = argv[1];
+    const char*  input_file = argv[1];
     const char* output_file = argv[2];
 
     FILE* fp = fopen(input_file, "rb");
@@ -121,19 +117,39 @@ int main(int argc, char* argv[]) {
     fread(buf, 1, buf_size, fp);
     fclose(fp);
 
-    int decoded_size = 0;
-    unsigned char* decoded = decode_rs_from_buffer(buf, buf_size, &decoded_size);
-    free(buf);
+    FILE *fout = fopen(output_file, "wb");
+    // First, search for parameters
+    int data_shards; 
+    int parity_shards; 
+    int block_size; 
+    int file_size;
+    int ret;
+    ret = search_rs_for_parameters(buf, buf_size, &data_shards, &parity_shards, &block_size, &file_size);
+    printf("data_shards: %d, parity_shards: %d, block_size: %d, file_size: %d\n", data_shards, parity_shards, block_size, file_size);
 
-    if (!decoded) {
-        fprintf(stderr, "Decoding failed.\n");
-        return -1;
+    // Second, loop decode
+    reed_solomon_handle* h = reed_solomon_handle_new(data_shards, parity_shards, 16, block_size, file_size);
+    int processed_size = 0;
+    unsigned char *p_data = buf;
+    while(buf_size > processed_size)
+    {
+        int processed_size_once = (data_shards + parity_shards) * block_size; 
+        int data_size_once = buf_size - processed_size > processed_size_once ? processed_size_once : buf_size - processed_size;
+        int decoded_size = 0;
+        unsigned char *decoded = decode_rs_from_buffer(h, p_data, data_size_once, &decoded_size);
+        if (!decoded)
+        {
+            fprintf(stderr, "Decoding failed.\n");
+            return -1;
+        }
+        fwrite(decoded, 1, decoded_size, fout);
+        free(decoded);
+        p_data         += data_size_once;
+        processed_size += processed_size_once;
     }
-
-    FILE* fout = fopen(output_file, "wb");
-    fwrite(decoded, 1, decoded_size, fout);
+    reed_solomon_handle_release(h);
+    free(buf);
     fclose(fout);
-    free(decoded);
 
     printf("Decoded and saved to: %s\n", output_file);
     return 0;

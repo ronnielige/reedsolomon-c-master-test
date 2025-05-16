@@ -27,6 +27,20 @@ typedef struct _reed_solomon {
     unsigned char* parity;
 } reed_solomon;
 
+typedef struct _reed_solomon_handle {
+    int data_shards;             // data shards
+    int parity_shards;           // parity shards
+    int prefix_size;             // size of prefix data added at the beginning of each packet 
+    int block_size;              // size of packet
+    int block_data_size;         // size of data in each packet exclude prefix data
+    int total_size;              // total processed buffer size
+    int remain_size;
+    unsigned char** data;        // data[i] point to i-th data_shards
+    unsigned char*  data_buffer; // buffer to store original data and fec data(fec data append at the end)
+    unsigned char** fec;         // fec[i] point to i-th parity_shards
+    reed_solomon* rs;
+} reed_solomon_handle;
+
 /**
  * MUST initial one time
  * */
@@ -84,5 +98,11 @@ int reed_solomon_encode2(reed_solomon* rs, unsigned char** shards, int nr_shards
  * marks[nr_shards] marks as errors
  * */
 int reed_solomon_reconstruct(reed_solomon* rs, unsigned char** shards, unsigned char* marks, int nr_shards, int block_size);
+
+
+
+reed_solomon_handle* reed_solomon_handle_new(int data_shards, int parity_shards, int prefix_size, int block_size, int total_size);
+
+void reed_solomon_handle_release(reed_solomon_handle* h);
 #endif
 

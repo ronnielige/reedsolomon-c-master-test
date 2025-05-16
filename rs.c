@@ -989,3 +989,33 @@ int reed_solomon_reconstruct(reed_solomon* rs,
     return err;
 }
 
+reed_solomon_handle* reed_solomon_handle_new(int data_shards, int parity_shards, int prefix_size, int block_size, int total_size) {
+    int idx, j, total_shards;
+    fec_init();
+    reed_solomon_handle* handle = malloc(sizeof(reed_solomon_handle));
+    handle->data_shards         = data_shards;
+    handle->parity_shards       = parity_shards;
+    handle->prefix_size         = prefix_size;   // default set to 16: 4 bytes store data_shards, 4 bytes store parity shards, 4 bytes store block_size, 4 bytes store total_size
+    handle->block_size          = block_size;
+    handle->block_data_size     = block_size - prefix_size;
+    handle->total_size          = total_size;
+    handle->remain_size         = total_size;
+    handle->rs                  = reed_solomon_new(data_shards, parity_shards);
+    total_shards                = data_shards + parity_shards;
+    handle->data                = malloc(sizeof(unsigned char*) * total_shards);
+    handle->data_buffer         = malloc(total_shards * block_size);
+    for (idx = 0; idx < total_shards; idx++) 
+        handle->data[idx] = handle->data_buffer + idx * block_size;
+    handle->fec            = malloc(sizeof(unsigned char*) * parity_shards);
+    for (idx = 0; idx < parity_shards; idx++) 
+        handle->fec[idx]  = handle->data[idx + data_shards];
+    return handle;
+}
+
+void reed_solomon_handle_release(reed_solomon_handle* h) {
+    free(h->data);
+    free(h->data_buffer);
+    free(h->fec);
+    reed_solomon_release(h->rs);
+    free(h);
+}

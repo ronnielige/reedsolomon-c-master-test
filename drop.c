@@ -11,22 +11,23 @@ int is_lost(int index, int* lost_list, int lost_count) {
 }
 
 int main(int argc, char* argv[]) {
-    if (argc < 4) {
-        printf("Usage: %s <input_file.bin> <output_file.bin> <shard_id1> [shard_id2] ...\n", argv[0]);
+    if (argc < 5) {
+        printf("Usage: %s <input_file.bin> <output_file.bin> <block_size> <shard_id1> [shard_id2] ...\n", argv[0]);
         return -1;
     }
 
     const char* input_file = argv[1];
     const char* output_file = argv[2];
+    int block_size = atoi(argv[3]);
 
-    int lost_count = argc - 3;
+    int lost_count = argc - 4;
     int* lost_list = malloc(sizeof(int) * lost_count);
     if (!lost_list) {
         perror("malloc");
         return -1;
     }
     for (int i = 0; i < lost_count; i++) {
-        lost_list[i] = atoi(argv[i + 3]);
+        lost_list[i] = atoi(argv[i + 4]);
     }
 
     FILE* fp_in = fopen(input_file, "rb");
@@ -36,23 +37,8 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-    int data_shards, parity_shards, block_size, file_size;
-    if (fread(&data_shards, sizeof(int), 1, fp_in) != 1 ||
-        fread(&parity_shards, sizeof(int), 1, fp_in) != 1 ||
-        fread(&block_size, sizeof(int), 1, fp_in) != 1 ||
-        fread(&file_size, sizeof(int), 1, fp_in) != 1) {
-        fprintf(stderr, "Failed to read header from input file\n");
-        fclose(fp_in);
-        free(lost_list);
-        return -1;
-    }
-
-    int total_shards = data_shards + parity_shards;
-
     printf("Input file: %s\n", input_file);
     printf("Output file: %s\n", output_file);
-    printf("Shards: data=%d, parity=%d, total=%d, block_size=%d\n",
-           data_shards, parity_shards, total_shards, block_size);
     printf("Dropping shards:");
     for (int i = 0; i < lost_count; i++) {
         printf(" %d", lost_list[i]);
@@ -67,11 +53,6 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-    // 写回 metadata
-    fwrite(&data_shards, sizeof(int), 1, fp_out);
-    fwrite(&parity_shards, sizeof(int), 1, fp_out);
-    fwrite(&block_size, sizeof(int), 1, fp_out);
-    fwrite(&file_size, sizeof(int), 1, fp_out);
 
     unsigned char* buffer = malloc(block_size);
     if (!buffer) {
@@ -82,9 +63,10 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-    for (int i = 0; i < total_shards; i++) {
+    for (int i = 0; ;i++) {
         size_t read = fread(buffer, 1, block_size, fp_in);
         if (read != block_size) {
+            break;
             fprintf(stderr, "Failed to read shard %d from input file\n", i);
             // 可以根据需求选择退出或处理不完整块，这里选择退出
             free(buffer);
