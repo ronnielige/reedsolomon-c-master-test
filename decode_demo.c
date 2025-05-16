@@ -78,7 +78,7 @@ unsigned char* decode_rs_from_buffer(reed_solomon_handle* h, const unsigned char
     unsigned char* out_data = malloc(encoded_size);
     int copied = 0;
     for (int i = 0; i < h->data_shards && copied < h->total_size && h->remain_size > 0; i++) {
-        int copy_len = (h->remain_size < h->block_size - h->prefix_size) ? h->remain_size - h->prefix_size : h->block_size - h->prefix_size;
+        int copy_len = (h->remain_size < h->block_size - h->prefix_size) ? h->remain_size: h->block_size - h->prefix_size;
         memcpy(out_data + copied, h->data[i] + h->prefix_size, copy_len);
         copied += copy_len;
         h->remain_size = h->remain_size - copy_len;
