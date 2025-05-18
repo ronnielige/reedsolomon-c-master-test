@@ -17,14 +17,14 @@ int search_rs_for_parameters(const unsigned char* encoded_buf, int encoded_size,
 {
     int idx;
     const int *ptr = (int *)encoded_buf;
-    for(idx = 0; idx < encoded_size  * sizeof(unsigned char*) / sizeof(int); idx++)
+    for(idx = 0; idx < encoded_size; idx++)
     {
-        if(ptr[idx] != 0)
+        if(encoded_buf[idx] != 0)
         {
-            *data_shards   = ptr[idx];
-            *parity_shards = ptr[idx + 1];
-            *block_size    = ptr[idx + 2];
-            *file_size     = ptr[idx + 3];
+            *data_shards   = encoded_buf[idx];                // unsigned char
+            *parity_shards = encoded_buf[idx + 1];            // unsigned char
+            memcpy(block_size, &encoded_buf[idx + 2], sizeof(short));
+            memcpy(file_size,  &encoded_buf[idx + 4], sizeof(int));
             return 1;
         }
     }
@@ -33,7 +33,7 @@ int search_rs_for_parameters(const unsigned char* encoded_buf, int encoded_size,
 
 unsigned char* decode_rs_from_buffer(reed_solomon_handle* h, const unsigned char* encoded_buf, int encoded_size, int* out_file_size)
 {
-    if (!encoded_buf || encoded_size < sizeof(int) * 4) {
+    if (!encoded_buf) {
         fprintf(stderr, "Invalid buffer.\n");
         return NULL;
     }
@@ -65,7 +65,7 @@ unsigned char* decode_rs_from_buffer(reed_solomon_handle* h, const unsigned char
     // 检查是否可恢复
     if (available_shards < h->data_shards) {
         fprintf(stderr, "ERROR: Not enough shards to recover. Needed %d, got %d\n", h->data_shards, available_shards);
-        goto fail;
+        //goto fail;
     }
 
     // 解码
@@ -82,7 +82,7 @@ unsigned char* decode_rs_from_buffer(reed_solomon_handle* h, const unsigned char
         memcpy(out_data + copied, h->data[i] + h->prefix_size, copy_len);
         copied += copy_len;
         h->remain_size = h->remain_size - copy_len;
-        printf("copy_len = %d total_size = %d\n", copy_len, h->total_size);
+        // printf("copy_len = %d total_size = %d\n", copy_len, h->total_size);
     }
 
     // 清理
@@ -128,7 +128,7 @@ int main(int argc, char* argv[]) {
     printf("data_shards: %d, parity_shards: %d, block_size: %d, file_size: %d\n", data_shards, parity_shards, block_size, file_size);
 
     // Second, loop decode
-    reed_solomon_handle* h = reed_solomon_handle_new(data_shards, parity_shards, 16, block_size, file_size);
+    reed_solomon_handle* h = reed_solomon_handle_new(data_shards, parity_shards, PREFIX_BYTES, block_size, file_size);
     int processed_size = 0;
     unsigned char *p_data = buf;
     while(buf_size > processed_size)

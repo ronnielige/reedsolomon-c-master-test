@@ -27,6 +27,9 @@ typedef struct _reed_solomon {
     unsigned char* parity;
 } reed_solomon;
 
+// define 8 bytes prefix content:  data_shards (1 char) + parity_shards (1 char) + block_size (1 short) + file_size ( 1 int)
+#define PREFIX_BYTES 8
+
 typedef struct _reed_solomon_handle {
     int data_shards;             // data shards
     int parity_shards;           // parity shards

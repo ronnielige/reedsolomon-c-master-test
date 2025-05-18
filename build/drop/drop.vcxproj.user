@@ -3,11 +3,11 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <RemoteDebuggerCommand>/mnt/data/local-disk3/lr/Project/reedsolomon/reedsolomon-c-master-test/bin/x64/Debug/drop</RemoteDebuggerCommand>
     <DebuggerFlavor>LinuxDebugger</DebuggerFlavor>
-    <RemoteDebuggerCommandArguments>/mnt/data/local-disk3/lr/Project/reedsolomon/reedsolomon-c-master-test/bin/enc.bin   /mnt/data/local-disk3/lr/Project/reedsolomon/reedsolomon-c-master-test/bin/drop.bin  192  2 40 60 98  160</RemoteDebuggerCommandArguments>
+    <RemoteDebuggerCommandArguments>/mnt/data/local-disk3/lr/Project/reedsolomon/reedsolomon-c-master-test/bin/enc.bin   /mnt/data/local-disk3/lr/Project/reedsolomon/reedsolomon-c-master-test/bin/drop.bin  400  0 1 2 3 40 60 61 98  160 180 210 240</RemoteDebuggerCommandArguments>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <RemoteDebuggerCommand>/mnt/data/local-disk3/lr/Project/reedsolomon/reedsolomon-c-master-test/bin/x64/Debug/drop</RemoteDebuggerCommand>
     <DebuggerFlavor>LinuxDebugger</DebuggerFlavor>
-    <RemoteDebuggerCommandArguments>/mnt/data/local-disk3/lr/Project/reedsolomon/reedsolomon-c-master-test/bin/enc.bin   /mnt/data/local-disk3/lr/Project/reedsolomon/reedsolomon-c-master-test/bin/drop.bin  192  2 40 60 98  160</RemoteDebuggerCommandArguments>
+    <RemoteDebuggerCommandArguments>/mnt/data/local-disk3/lr/Project/reedsolomon/reedsolomon-c-master-test/bin/enc.bin   /mnt/data/local-disk3/lr/Project/reedsolomon/reedsolomon-c-master-test/bin/drop.bin  400  0 1 2 3 40 60 61 98  160 180 210 240</RemoteDebuggerCommandArguments>
   </PropertyGroup>
 </Project>

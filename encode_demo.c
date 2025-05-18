@@ -26,14 +26,14 @@ unsigned char* encode_rs_from_buffer( reed_solomon_handle* h, const unsigned cha
         if(copy_size > 0)
             memcpy(h->data[i] + h->prefix_size, data + offset, copy_size);
 
-        // 每一个packet增加16字节前置数据
+        // 每一个packet增加 8 字节前置数据
         unsigned char *ptr = h->data[i];
-        memcpy(ptr, &h->data_shards, sizeof(int));
-        ptr += sizeof(int);
-        memcpy(ptr, &h->parity_shards, sizeof(int));
-        ptr += sizeof(int);
-        memcpy(ptr, &h->block_size, sizeof(int));
-        ptr += sizeof(int);
+        memcpy(ptr, &h->data_shards, sizeof(unsigned char));
+        ptr += sizeof(unsigned char);
+        memcpy(ptr, &h->parity_shards, sizeof(unsigned char));
+        ptr += sizeof(unsigned char);
+        memcpy(ptr, &h->block_size, sizeof(short));
+        ptr += sizeof(short);
         memcpy(ptr, &h->total_size, sizeof(int));
         ptr += sizeof(int);
     }
@@ -96,7 +96,7 @@ int main(int argc, char* argv[]) {
     int encoded_size = 0;
     int processed_size = 0;
     int data_size_once;
-    reed_solomon_handle* h = reed_solomon_handle_new(data_shards, parity_shards, 16, block_size, file_size);
+    reed_solomon_handle* h = reed_solomon_handle_new(data_shards, parity_shards, PREFIX_BYTES, block_size, file_size);  // 每一个packet增加 8 字节前置数据
     while (file_size > processed_size) // 分段处理输入文件，一次处理data_shards个数据块
     {
         int process_size_once = data_shards * h->block_data_size;
