@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <RemoteDebuggerCommand>/mnt/data/local-disk3/lr/Project/reedsolomon/reedsolomon-c-master-test/bin/x64/Debug/reedsolomon_decode</RemoteDebuggerCommand>
+    <DebuggerFlavor>LinuxDebugger</DebuggerFlavor>
+    <RemoteDebuggerCommandArguments>/mnt/data/local-disk3/lr/Project/reedsolomon/reedsolomon-c-master-test/bin/drop.bin    /mnt/data/local-disk3/lr/Project/reedsolomon/reedsolomon-c-master-test/bin/rec.avp</RemoteDebuggerCommandArguments>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <RemoteDebuggerCommand>/mnt/data/local-disk3/lr/Project/reedsolomon/reedsolomon-c-master-test/bin/x64/Debug/reedsolomon_decode</RemoteDebuggerCommand>
+    <DebuggerFlavor>LinuxDebugger</DebuggerFlavor>
+    <RemoteDebuggerCommandArguments>/mnt/data/local-disk3/lr/Project/reedsolomon/reedsolomon-c-master-test/bin/drop.bin    /mnt/data/local-disk3/lr/Project/reedsolomon/reedsolomon-c-master-test/bin/rec.avp</RemoteDebuggerCommandArguments>
+  </PropertyGroup>
+</Project>
